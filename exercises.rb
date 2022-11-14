@@ -1,20 +1,19 @@
-def length_of_longest_substring(s)
-  return 0 if s.empty?
-  seen = {}
-  sofar = 0
+class Person
+  attr_writer :secret
 
-  i = 0
-  j = 0
-
-  until j == s.length
-    if seen[s[j]]
-      i = [seen[s[j]], i].max
-    end
-    sofar = [sofar, j - i + 1].max
-    seen[s[j]] = j + 1
-    j += 1
+  def compare_secret(target)
+    self.secret == target.secret
   end
-  sofar
+
+  protected
+
+  attr_reader :secret
 end
 
-length_of_longest_substring("pwwkew")
+person1 = Person.new
+person1.secret = 'Shh.. this is a secret!'
+
+person2 = Person.new
+person2.secret = 'Shh.. this is a different secret!'
+
+puts person1.compare_secret(person2)
