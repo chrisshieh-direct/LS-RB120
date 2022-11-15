@@ -1,19 +1,17 @@
-class Person
-  attr_writer :secret
+class Machine
 
-  def compare_secret(target)
-    self.secret == target.secret
+  def start
+    self.flip_switch(:on)
   end
 
-  protected
+  def stop
+    self.flip_switch(:off)
+  end
 
-  attr_reader :secret
+  private
+  attr_writer :switch
+
+  def flip_switch(desired_state)
+    self.switch = desired_state
+  end
 end
-
-person1 = Person.new
-person1.secret = 'Shh.. this is a secret!'
-
-person2 = Person.new
-person2.secret = 'Shh.. this is a different secret!'
-
-puts person1.compare_secret(person2)

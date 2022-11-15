@@ -1,20 +1,27 @@
-class Box
-  attr_accessor :name, :clay, :year
-
-  def initialize
-    @name = "boo"
-    @clay = "yes"
-    @color = "black"
+class FarmAnimal
+  def speak
+    "#{self.class} says "
   end
 end
 
-red = Box.new
-
-p red.name, red.clay, red.year
-
-if red.year == nil
-  red.year = 1973
-  puts "We added it"
+class Sheep < FarmAnimal
+  def speak
+    super + "baa!"
+  end
 end
 
-p red.name, red.clay, red.year
+class Lamb < Sheep
+  def speak
+    super + "baaaaaaa!"
+  end
+end
+
+class Cow < FarmAnimal
+  def speak
+    super + "mooooooo!"
+  end
+end
+
+p Sheep.new.speak # => "Sheep says baa!"
+p Lamb.new.speak # => "Lamb says baa!baaaaaaa!"
+p Cow.new.speak # => "Cow says mooooooo!"
