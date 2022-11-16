@@ -1,12 +1,28 @@
 class Player
-  attr_accessor :move, :name
+  attr_accessor :move, :name, :score
 
   def initialize
     set_name
+    @score = 0
+  end
+
+  def reset_score
+    @score = 0
+  end
+
+  def add_victory
+    @score += 1
   end
 end
 
 class Human < Player
+  attr_reader :copy_target
+
+  def initialize
+    super
+    self.copy_target = 'rock'
+  end
+
   def choose
     puts "Please choose rock, paper, or scissors."
     choice = ''
@@ -15,10 +31,13 @@ class Human < Player
       break if ['rock', 'paper', 'scissors'].include?(choice)
       puts "Sorry, invalid choice. Please choose rock, paper, or scissors."
     end
+    self.copy_target = choice
     self.move = Move.new(choice)
   end
 
   private
+
+  attr_writer :copy_target
 
   def set_name
     answer = ''
@@ -33,15 +52,24 @@ class Human < Player
 end
 
 class Computer < Player
-  def choose
-    self.move = Move.new(Move::VALUES.sample)
+  def choose(opponent)
+    case name
+    when 'Rocklover'
+      self.move = Move.new('rock')
+    when 'Randy'
+      self.move = Move.new(Move::VALUES.sample)
+    when 'Copycat'
+      self.move = Move.new(opponent.copy_target)
+    when 'Edward'
+      self.move = Move.new(['scissors', 'scissors', 'scissors', 'rock'].sample)
+    end
   end
 
   private
 
   def set_name
-    self.name = ['Charles', 'Ada', 'Grace', 'Alan'].sample
-    puts "The computer's name is #{name}."
+    self.name = ['Rocklover', 'Copycat', 'Edward', 'Randy'].sample
+    puts "You are playing against #{name}."
   end
 end
 
@@ -65,12 +93,6 @@ class Move
     return true if scissors? && other_move.paper?
   end
 
-  def <(other_move)
-    (paper? && other_move.scissors?)   ||
-      (scissors? && other_move.rock?)  ||
-      (rock? && other_move.paper?)
-  end
-
   protected
 
   def rock?
@@ -88,22 +110,47 @@ end
 
 # Game orch engine
 class RPSGame
-  attr_accessor :human, :computer
+  attr_accessor :human, :computer, :log, :round
 
   def initialize
     @human = Human.new
     @computer = Computer.new
+    @log = []
+    @round = 1
   end
 
   def play
     display_welcome_message
     loop do
+      computer.choose(human)
       human.choose
-      computer.choose
-      computer.move
-      display_winner
+      display_moves
+      record_log
+      adjust_score(find_winner)
       break unless play_again?
     end
+    end_of_game
+  end
+
+  def record_log
+    @log << "#{round}|Human: #{human.move}, Computer: #{computer.move}"
+    @round += 1
+  end
+
+  def show_log
+    answer = ''
+    loop do
+      puts "Show log before you go? (y/n)"
+      answer = gets.chomp.downcase
+      break if answer == 'y' || answer == 'n'
+      puts "Sorry, enter (Y)es or (N)o."
+    end
+    return unless answer == "y"
+    log.each { |line| puts line }
+  end
+
+  def end_of_game
+    show_log
     display_goodbye_message
   end
 
@@ -117,17 +164,22 @@ class RPSGame
     puts "Thanks for playing Rock, Paper, Scissors. Goodbye!"
   end
 
-  def display_winner
-    a = human.move
-    b = computer.move
-    puts "#{human.name} chose #{a}\n#{computer.name} chose #{b}"
-    if a > b
+  def display_moves
+    puts "#{human.name} chose #{human.move}"
+    puts "#{computer.name} chose #{computer.move}"
+  end
+
+  def find_winner
+    if human.move > computer.move
       puts "#{human.name} won!"
-    elsif a < b
+      winner = human
+    elsif computer.move > human.move
       puts "#{computer.name} wins. Sorry."
+      winner = computer
     else
       puts "It's a tie."
     end
+    winner
   end
 
   def play_again?
@@ -139,6 +191,28 @@ class RPSGame
       puts "Sorry, enter (Y)es or (N)o."
     end
     answer == "y"
+  end
+
+  def adjust_score(player)
+    return if player.nil?
+    player.add_victory
+    puts "SCORE"
+    puts "#{human.name}: #{human.score} points"
+    puts "#{computer.name}: #{computer.score} points."
+    @round = 1 if (check_match_win(human, computer)).nil?
+  end
+
+  def check_match_win(hum, comp)
+    if hum.score == 10
+      hum.reset_score
+      comp.reset_score
+      return puts (log << "#{hum.name} WINS MATCH!").last
+    elsif comp.score == 10
+      hum.reset_score
+      comp.reset_score
+      return puts (log << "#{comp.name} wins the match.").last
+    end
+    true
   end
 end
 
