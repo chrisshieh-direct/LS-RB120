@@ -1,0 +1,30 @@
+Fic Fac Foe
+
+
+FEATURES
+* allow the player to pick any marker
+* set a name for the player and computer
+* allow either player to go first or random
+
+* improved "join" on free space display
+* first to 5 wins a match
+* computer mood? Perfect or imperfect
+* computer ai offense looks to win (pick 5 if nothing better, then random)
+* computer ai defense, always blocks immediate threat
+* minimax algo?
+* 5 x 5, 3 players?
+
+NOUNS
+Player
+Computer 1 (Cray)
+Computer 2 (Kray Kray)
+Board
+Squares
+Score
+Match Score
+
+VERBS
+Play
+Move
+Win
+Tie
