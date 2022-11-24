@@ -1,7 +1,8 @@
 require 'io/console'
+require 'colorize'
 
 class Player
-  attr_reader :score
+  attr_reader :score, :marker
 
   def initialize
     @score = 0
@@ -13,9 +14,13 @@ class Player
 
   def move; end
 
+  def write_marker(marker)
+    @marker = marker
+  end
+
   private
 
-  attr_writer :score
+  attr_writer :score, :marker
 end
 
 class Human < Player
@@ -34,13 +39,24 @@ class Cray < Player
   def initialize
     super
     @name = 'Cray'
+    @marker = 'C'
   end
+
+  def move(empty)
+    empty.sample
+  end
+
 end
 
 class KrayKray < Player
   def initialize
     super
     @name = 'KrayKray'
+    @marker = 'K'
+  end
+
+  def move(empty)
+    empty.sample
   end
 end
 
@@ -50,7 +66,7 @@ class Board
     @human = human
     @cray = cray
     @kraykray = kraykray
-    reset
+    launch
   end
 
   # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
@@ -59,26 +75,54 @@ class Board
     puts "---------------------  FIC FAC FOE!"
     puts "| #{sq(1)} | #{sq(2)} | #{sq(3)} | #{sq(4)} | #{sq(5)} |"
     puts "---------------------  First to win 3 times wins a match!"
-    puts "| #{sq(1)} | #{sq(1)} | #{sq(1)} | #{sq(1)} | #{sq(1)} |"
+    puts "| #{sq(6)} | #{sq(7)} | #{sq(8)} | #{sq(9)} | #{sq(10)} |"
     puts "---------------------  Current Score:"
-    puts "| #{sq(1)} | #{sq(1)} | #{sq(1)} | #{sq(1)} | #{sq(1)} |"
-    puts "---------------------  You: #{human.score}"
-    puts "| #{sq(1)} | #{sq(1)} | #{sq(1)} | #{sq(1)} | #{sq(1)} |"
-    puts "---------------------  Cray: #{cray.score}"
-    puts "| #{sq(1)} | #{sq(1)} | #{sq(1)} | #{sq(1)} | #{sq(1)} |"
-    puts "---------------------  KrayKray: #{kraykray.score}"
+    puts "| #{sq(11)} | #{sq(12)} | #{sq(13)} | #{sq(14)} | #{sq(15)} |"
+    puts "---------------------  You (#{human.marker}): #{human.score}"
+    puts "| #{sq(16)} | #{sq(17)} | #{sq(18)} | #{sq(19)} | #{sq(20)} |"
+    puts "---------------------  Cray (#{cray.marker}): #{cray.score}"
+    puts "| #{sq(21)} | #{sq(22)} | #{sq(23)} | #{sq(24)} | #{sq(25)} |"
+    puts "---------------------  KrayKray (#{kraykray.marker}): #{kraykray.score}"
     puts
   end
   # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
   def sq(int)
-    @grid[int]
+    color = ''
+    case @grid[int][1]
+    when 'Cray'
+      color = :blue
+    when 'KrayKray'
+      color = :red
+    when 'Human'
+      color = :white
+    end
+    @grid[int][0].colorize(color)
   end
 
-  def reset
+  def launch
     1.upto(25) do |x|
       grid[x] = " "
     end
+  end
+
+  def erase
+    display
+    1.upto(25) do |x|
+      grid[x] = " "
+      display
+      sleep 0.05
+    end
+  end
+
+  def empty
+    @grid.select do |_k, v|
+      v == ' '
+    end.keys
+  end
+
+  def mark(player)
+    @grid[player.move(empty)] = ["#{player.marker}", player.class.to_s]
   end
 
   private
@@ -131,6 +175,12 @@ module Interface
     answer
   end
 
+  def set_markers
+    @human.write_marker(choose_marker)
+    @cray.write_marker('X') if @human.marker == 'C'
+    @kraykray.write_marker('X') if @human.marker == 'K'
+  end
+
   def choose_marker
     marker = ''
     answer = ''
@@ -141,6 +191,7 @@ module Interface
       answer = $stdin.getch.downcase
       break if answer == 'y'
     end
+    marker
   end
 end
 
@@ -162,12 +213,33 @@ class FFFGame
 
   # rubocop:disable Metrics/MethodLength
   def play
+    puts "This is blue".colorize(:blue)
+puts "This is light blue".colorize(:light_blue)
+puts "This is also blue".colorize(:color => :blue)
+puts "This is light blue with red background".colorize(:color => :light_blue, :background => :red)
+puts "This is light blue with red background".colorize(:light_blue ).colorize( :background => :red)
+puts "This is blue text on red".blue.on_red
     @human.write_name(welcome_getname)
     display_rules
-    choose_marker
+    set_markers
     @board.display
+    sleep 1
+    @board.mark(@cray)
+    @board.display
+    sleep 0.2
+  12.times do
+      @board.mark(@kraykray)
+      @board.display
+      sleep 0.1
+      @board.mark(@cray)
+      @board.display
+      sleep 0.1
+    end
+    sleep 1
+
+    @board.erase
+
     # ask who goes first
-    # display empty board
     # huamn move / computer1 move / computer2 move
     #   chueck for win / check if full
     # after checks : display Score
