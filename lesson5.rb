@@ -1,8 +1,13 @@
-a = 2 * 4
-b = 6 * 5
-c = 8 * 6
-d = 8 * 7
+class Computer
+end
 
-e = (a+b+c+d)/24
+class Human
+end
 
-p e
+bob = Human.new
+
+bob_class = bob.class
+
+if bob_class == Human
+  puts "He's human"
+end
