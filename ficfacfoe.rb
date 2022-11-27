@@ -41,6 +41,27 @@ class Player
     self.score = 0
   end
 
+  def move(empty)
+    finish = finish_win(empty)
+    return finish if finish
+  end
+
+  # rubocop:disable Metrics/MethodLength
+  def finish_win(empty)
+    Board::WINNING_LINES.each do |line|
+      count = 0
+      line.each do |spot|
+        count += 1 if moves.include?(spot)
+      end
+      if count == 3
+        target = (line - moves).first
+        return target if empty.include?(target)
+      end
+    end
+    nil
+  end
+  # rubocop:enable Metrics/MethodLength
+
   private
 
   attr_writer :score, :marker, :moves, :match_score
@@ -74,15 +95,30 @@ end
 class Cray < Player
   attr_reader :name
 
+  PREFERRED_SQUARES = [[13], [7, 8, 9, 12, 14, 17, 18, 19],
+                       [2, 4, 6, 10, 16, 20, 22, 24]]
+
   def initialize
     super
     @name = 'Cray'
     @marker = 'C'
   end
 
+  # rubocop:disable Metrics/MethodLength
   def move(empty)
+    return super if super
+    targets = PREFERRED_SQUARES.map do |squares|
+      squares.select do |square|
+        empty.include?(square)
+      end
+    end
+    targets.each do |squares|
+      next if squares.empty?
+      return squares.sample
+    end
     empty.sample
   end
+  # rubocop:enable Metrics/MethodLength
 end
 
 class KrayKray < Player
@@ -95,6 +131,7 @@ class KrayKray < Player
   end
 
   def move(empty)
+    return super if super
     empty.sample
   end
 end
@@ -250,18 +287,24 @@ module Interface
     @kraykray.write_marker('X') if @human.marker == 'K'
   end
 
+  # rubocop:disable Metrics/MethodLength
   def choose_marker
     marker = ''
     answer = ''
     loop do
-      puts "Press any key to choose your marker."
-      marker = $stdin.getch.upcase
+      loop do
+        puts "Choose a letter to represent your marker."
+        marker = $stdin.getch.upcase
+        break if ('A'..'Z').include?(marker)
+        puts "Invalid entry."
+      end
       puts "Your marker is #{marker}, okay? (Y to confirm)"
       answer = $stdin.getch.downcase
       break if answer == 'y'
     end
     marker
   end
+  # rubocop:enable Metrics/MethodLength
 
   def farewell
     puts "Fare thee well. Have a wonderful day!"
@@ -286,6 +329,7 @@ class FFFGame
     farewell
   end
 
+  # rubocop:disable Metrics/MethodLength
   def main_game
     loop do
       single_game
@@ -300,6 +344,7 @@ class FFFGame
       break unless play_again?
     end
   end
+  # rubocop:enable Metrics/MethodLength
 
   def check_match_win
     return @human if @human.score == 3
@@ -318,19 +363,16 @@ class FFFGame
   def single_game
     order = set_playing_order
     @board.display
-    game_over = false
+    winner_or_tie = nil
     loop do
-      round(order[0])
-      game_over = @board.check_for_finish(order[0])
-      break if game_over
-      round(order[1])
-      game_over = @board.check_for_finish(order[1])
-      break if game_over
-      round(order[2])
-      game_over = @board.check_for_finish(order[2])
-      break if game_over
+      order.each do |player|
+        round(player)
+        winner_or_tie = @board.check_for_finish(player)
+        break if winner_or_tie
+      end
+      break if winner_or_tie
     end
-    post_game(game_over)
+    post_game(winner_or_tie)
     sleep 1.5
   end
   # rubocop:enable Metrics/MethodLength
