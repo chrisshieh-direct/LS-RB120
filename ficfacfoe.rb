@@ -8,6 +8,80 @@ end
 
 String.include(Colorful)
 
+module Interface
+  def welcome_getname
+    answer = ''
+    system "clear"
+    loop do
+      puts "Welcome to FIC FAC FOUR! What's your name?"
+      answer = gets.chomp.strip
+      break unless answer.empty?
+      puts "Sorry, please enter a name for yourself."
+    end
+    answer
+  end
+
+  def display_rules
+    answer = show_rules?
+    return unless answer == 'y'
+    rules = <<~RULES
+      Try to get 4 of your markers in a row. You're playing against
+      two computer opponents. Cray is a supercomputer and will try
+      to play rationally. KrayKray is just plain crazy. Good luck!
+      RULES
+    puts rules
+    continue
+  end
+
+  def continue
+    puts ''
+    puts ">>> PRESS ANY KEY TO CONTINUE <<<"
+    puts ''
+    $stdin.getch
+  end
+
+  def show_rules?
+    answer = ''
+    puts ''
+    loop do
+      puts "Okay #{@human.name}, would you like to hear the rules? (Y/N)"
+      answer = $stdin.getch.downcase
+      break if answer == 'y' || answer == 'n'
+      puts "Sorry, please enter Y or N."
+    end
+    answer
+  end
+
+  def set_markers
+    @human.write_marker(choose_marker)
+    @cray.write_marker('X') if @human.marker == 'C'
+    @kraykray.write_marker('X') if @human.marker == 'K'
+  end
+
+  # rubocop:disable Metrics/MethodLength
+  def choose_marker
+    marker = ''
+    answer = ''
+    loop do
+      loop do
+        puts "Choose a letter to represent your marker."
+        marker = $stdin.getch.upcase
+        break if ('A'..'Z').include?(marker)
+        puts "Invalid entry."
+      end
+      puts "Your marker is #{marker}, okay? (Y to confirm)"
+      answer = $stdin.getch.downcase
+      break if answer == 'y'
+    end
+    marker
+  end
+  # rubocop:enable Metrics/MethodLength
+
+  def farewell
+    puts "Fare thee well. Have a wonderful day!"
+  end
+end
+
 class Player
   attr_reader :score, :marker, :moves, :match_score
 
@@ -41,21 +115,21 @@ class Player
     self.score = 0
   end
 
-  def move(empty)
-    finish = finish_win(empty)
+  def move(empty_squares)
+    finish = finish_win(empty_squares)
     return finish if finish
   end
 
   # rubocop:disable Metrics/MethodLength
-  def finish_win(empty)
+  def finish_win(empty_squares)
     Board::WINNING_LINES.each do |line|
       count = 0
-      line.each do |spot|
-        count += 1 if moves.include?(spot)
+      line.each do |square|
+        count += 1 if moves.include?(square)
       end
       if count == 3
         target = (line - moves).first
-        return target if empty.include?(target)
+        return target if empty_squares.include?(target)
       end
     end
     nil
@@ -74,12 +148,12 @@ class Human < Player
     @name = name
   end
 
-  def move(empty)
+  def move(empty_squares)
     answer = ''
     loop do
-      puts "Choose a space (#{empty.join(', ')})."
+      puts "Choose a space (#{empty_squares.join(', ')})."
       answer = gets.chomp.downcase.to_i
-      break if empty.include?(answer)
+      break if empty_squares.include?(answer)
       puts "Sorry, invalid choice."
       puts ''
       sleep 0.3
@@ -104,21 +178,23 @@ class Cray < Player
     @marker = 'C'
   end
 
-  # rubocop:disable Metrics/MethodLength
-  def move(empty)
+  def move(empty_squares)
     return super if super
-    targets = PREFERRED_SQUARES.map do |squares|
-      squares.select do |square|
-        empty.include?(square)
-      end
-    end
+    targets = empty_preferred_squares(empty_squares)
     targets.each do |squares|
       next if squares.empty?
       return squares.sample
     end
-    empty.sample
+    empty_squares.sample
   end
-  # rubocop:enable Metrics/MethodLength
+
+  def empty_preferred_squares(empty_squares)
+    PREFERRED_SQUARES.map do |squares|
+      squares.select do |square|
+        empty_squares.include?(square)
+      end
+    end
+  end
 end
 
 class KrayKray < Player
@@ -130,9 +206,9 @@ class KrayKray < Player
     @marker = 'K'
   end
 
-  def move(empty)
+  def move(empty_squares)
     return super if super
-    empty.sample
+    empty_squares.sample
   end
 end
 
@@ -191,7 +267,7 @@ class Board
     end
   end
 
-  def empty
+  def empty_squares
     @grid.select do |_k, v|
       v == ' '
     end.keys
@@ -199,7 +275,7 @@ class Board
 
   def check_for_finish(player)
     return player if check_win(player)
-    return 'tie' if empty.empty?
+    return 'tie' if empty_squares.empty?
     false
   end
 
@@ -225,7 +301,7 @@ class Board
   end
 
   def mark(player)
-    choice = player.move(empty)
+    choice = player.move(empty_squares)
     @grid[choice] = [player.marker.to_s, player.class.to_s]
     player.record_move(choice)
   end
@@ -233,82 +309,6 @@ class Board
   private
 
   attr_accessor :human, :cray, :kraykray, :grid
-end
-
-class Square
-  def initialize; end
-end
-
-module Interface
-  def welcome_getname
-    answer = ''
-    system "clear"
-    loop do
-      puts "Welcome to FIC FAC FOUR! What's your name?"
-      answer = gets.chomp
-      break unless answer.empty?
-      puts "Sorry, please enter a name for yourself."
-    end
-    answer
-  end
-
-  def display_rules
-    answer = show_rules?
-    return unless answer == 'y'
-    puts ''
-    puts "Try to get 4 of your markers in a row. You're playing against"
-    puts "two computer opponents. Cray is a supercomputer and will try"
-    puts "to play rationally. KrayKray is just plain crazy. Good luck!"
-    continue
-  end
-
-  def continue
-    puts ''
-    puts ">>> PRESS ANY KEY TO CONTINUE <<<"
-    puts ''
-    $stdin.getch
-  end
-
-  def show_rules?
-    answer = ''
-    puts ''
-    loop do
-      puts "Okay #{@human.name}, would you like to hear the rules? (Y/N)"
-      answer = $stdin.getch.downcase
-      break if answer == 'y' || answer == 'n'
-      puts "Sorry, please enter Y or N."
-    end
-    answer
-  end
-
-  def set_markers
-    @human.write_marker(choose_marker)
-    @cray.write_marker('X') if @human.marker == 'C'
-    @kraykray.write_marker('X') if @human.marker == 'K'
-  end
-
-  # rubocop:disable Metrics/MethodLength
-  def choose_marker
-    marker = ''
-    answer = ''
-    loop do
-      loop do
-        puts "Choose a letter to represent your marker."
-        marker = $stdin.getch.upcase
-        break if ('A'..'Z').include?(marker)
-        puts "Invalid entry."
-      end
-      puts "Your marker is #{marker}, okay? (Y to confirm)"
-      answer = $stdin.getch.downcase
-      break if answer == 'y'
-    end
-    marker
-  end
-  # rubocop:enable Metrics/MethodLength
-
-  def farewell
-    puts "Fare thee well. Have a wonderful day!"
-  end
 end
 
 class FFFGame
