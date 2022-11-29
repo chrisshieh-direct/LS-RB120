@@ -14,7 +14,7 @@ module Interface
     sleep 0.05
     end
     puts "Dealing..."
-    sleep 2
+    sleep 1
   end
 
   def goodbye
@@ -66,30 +66,28 @@ class Card
 
   SUITS = ['♥', '♤', '♧', '♦'].freeze
 
-  attr_reader :rank, :suit
+  attr_reader :rank
 
   def initialize(rank, suit)
     @rank = rank
     @suit = suit
   end
 
-  def value
-    RANKS[rank]
-  end
-
-  def show
-    puts " __"
-    puts "|#{rank} |"
-    puts "| #{suit}|"
-    puts " --"
+  def suit
+    if @suit == '♥' || @suit == '♦'
+      return @suit.colorize(91)
+    else
+      return @suit.colorize(37)
+    end
   end
 end
 
 class Player
-  attr_accessor :hand
+  attr_accessor :hand, :total
 
   def initialize
     @hand = []
+    @total = 0
   end
 
   def hit
@@ -98,22 +96,19 @@ class Player
   def stay
   end
 
-  def total
-    total_sum = 0
-    ace_count = 0
-
+  def total_hand
+    self.total = 0
     hand.each do |card|
       if card.rank != 'A'
-        total_sum += Card::RANKS[card.rank]
+        self.total += Card::RANKS[card.rank]
       else
-        if total_sum + 11 > 21
-          total_sum += 1
+        if total + 11 > 21
+          self.total += 1
         else
-          total_sum += 11
+          self.total += 11
         end
       end
     end
-    total_sum
   end
 
   def show_hand(show_first = true)
@@ -156,14 +151,63 @@ class Player
 end
 
 class Human < Player
+  def play_turn(deck, game)
+    loop do
+      move = hit_or_stay
+      if move == 'h'
+        hand << deck.pop
+        total_hand
+      end
+      game.display_table
+      break if total > 21 || move == 's'
+    end
+    if total > 21
+      puts "YOU BUSTED."
+      game.game_status = 'BUST'
+      sleep 1
+    else
+      puts "Now it's the Dealer's turn."
+      sleep 1
+    end
+  end
+
+  def hit_or_stay
+    answer = ''
+    loop do
+      puts "Would you like to (H)it or (S)tay?"
+      answer = gets.chomp.downcase.strip
+      break if answer == 'h' || answer == 's'
+      puts "Invalid response."
+    end
+    answer
+  end
 end
 
 class Dealer < Player
   STAY_TARGET = 17
+
+  def play_turn(deck, game)
+    game.display_table(show_dealer = true)
+    puts "Dealer has #{total}"
+    sleep 1.5
+    until total >= STAY_TARGET
+      hand << deck.pop
+      total_hand
+      game.display_table(show_dealer = true)
+      break if total > 21
+    end
+
+    if total > 21
+      puts "DEALER BUSTED! YOU WIN!"
+      game.game_status == 'WIN'
+      sleep 1
+    end
+  end
 end
 
 class BlackjackGame
   include Interface
+  attr_accessor :game_status
 
   WINNING_VALUE = 21
 
@@ -171,6 +215,7 @@ class BlackjackGame
     @human = Human.new
     @dealer = Dealer.new
     @deck = Deck.new
+    @game_status = nil
   end
 
   def play
@@ -178,14 +223,27 @@ class BlackjackGame
     loop do
       initial_deal
       display_table
-      player_turn
-      dealer_turn
+      unless blackjack?
+        @human.play_turn(@deck, self)
+        break if @game_status == 'BUST'
+        display_table
+        @dealer.play_turn(@deck, self)
+      end
       show_result
       display_score
       break unless play_again?
       reshuffle
     end
     goodbye
+  end
+
+  def blackjack?
+    if @human.total == 21
+      @game_status = 'WIN'
+      true
+    else
+      false
+    end
   end
 
   def reshuffle
@@ -197,28 +255,27 @@ class BlackjackGame
   end
 
   def initial_deal
+    @game_status == nil
     @human.hand = []
     @human.hand << @deck.pop
     @human.hand << @deck.pop
+    @human.total_hand
     @dealer.hand = []
     @dealer.hand << @deck.pop
     @dealer.hand << @deck.pop
+    @dealer.total_hand
   end
 
-  def display_table
+  def display_table(show_dealer = false)
     system "clear"
-    puts "DEALER: #{@dealer.total}".colorize(30)
-    @dealer.show_hand(show_first = false)
+    dealer_view = "???"
+    dealer_view = "#{@dealer.total}" if show_dealer == true
+    puts "DEALER: #{dealer_view}".colorize(30)
+    @dealer.show_hand(show_first = show_dealer)
     puts "\n\n"
     puts "YOUR HAND: #{@human.total}".colorize(31)
     @human.show_hand
     puts "\n\n"
-  end
-
-  def player_turn
-  end
-
-  def dealer_turn
   end
 
   def show_result
@@ -226,10 +283,6 @@ class BlackjackGame
 
   def display_score
   end
-
-  private
-
-  attr_accessor :npcs
 end
 
 game = BlackjackGame.new
