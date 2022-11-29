@@ -1,0 +1,28 @@
+class Deck
+has 52 cards
+shuffle
+deal
+
+class Card
+rank
+suit
+value
+
+class Player
+hit
+stay
+total
+
+class Human < Player
+class Dealer < Player
+class Computer < Player
+
+class Blackjack
+play
+
+CONSTANTS
+card values
+21 (bust)
+17 (dealer must hut until)
+Ace value (1 or 11)
+
