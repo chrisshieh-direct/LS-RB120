@@ -1,3 +1,5 @@
+require 'io/console'
+
 module Colorful
   def colorize(color_code)
     "\e[1m\e[#{color_code}m#{self}\e[0m\e[22m"
@@ -9,12 +11,37 @@ String.include(Colorful)
 module Interface
   def welcome
     (30..40).each do |color|
-    system "clear"
-    puts "Welcome to Blackjack!".colorize(color)
-    sleep 0.05
+      system "clear"
+      puts "Welcome to No-Bust Blackjack!".colorize(color)
+      sleep 0.05
     end
-    puts "Dealing..."
-    sleep 1
+    offer_rules
+  end
+
+  def continue
+    puts ' '
+    puts ">>> PRESS ANY KEY TO CONTINUE <<<"
+    $stdin.getch
+  end
+
+  def offer_rules
+    answer = ''
+    loop do
+      puts "\nWould you like to hear the rules? (Y/N)"
+      answer = $stdin.getch.downcase
+      break if answer == 'y' || answer == 'n'
+      puts "Invalid response."
+    end
+    return if answer == 'n'
+    rules = <<~RULESDOC
+      No-Bust Blackjack is like regular blackjack with one big difference.
+      You can still win if you bust! If you bust, the dealer will still
+      play their hand. If the dealer busts and you have a LOWER total,
+      you win the hand!
+      RULESDOC
+    puts ' '
+    puts rules
+    continue
   end
 
   def goodbye
@@ -55,14 +82,14 @@ class Deck
   end
 
   def pop
-    self.cards.pop
+    cards.pop
   end
 end
 
 class Card
   RANKS = { 'A' => 11, '2' => 2, '3' => 3, '4' => 4, '5' => 5, '6' => 6,
-    '7' => 7, '8' => 8, '9' => 9, '10' => 10, 'J' => 10,
-    'Q' => 10, 'K' => 10 }.freeze
+            '7' => 7, '8' => 8, '9' => 9, '10' => 10, 'J' => 10,
+            'Q' => 10, 'K' => 10 }.freeze
 
   SUITS = ['♥', '♤', '♧', '♦'].freeze
 
@@ -74,11 +101,8 @@ class Card
   end
 
   def suit
-    if @suit == '♥' || @suit == '♦'
-      return @suit.colorize(91)
-    else
-      return @suit.colorize(37)
-    end
+    return @suit.colorize(91) if @suit == '♥' || @suit == '♦'
+    @suit
   end
 end
 
@@ -90,28 +114,24 @@ class Player
     @total = 0
   end
 
-  def hit
-  end
+  def hit; end
 
-  def stay
-  end
+  def stay; end
 
   def total_hand
     self.total = 0
     hand.each do |card|
-      if card.rank != 'A'
-        self.total += Card::RANKS[card.rank]
-      else
-        if total + 11 > 21
-          self.total += 1
-        else
-          self.total += 11
-        end
-      end
+      self.total += if card.rank != 'A'
+                      Card::RANKS[card.rank]
+                    elsif total + 11 > 21
+                      1
+                    else
+                      11
+                    end
     end
   end
 
-  def show_hand(show_first = true)
+  def show_hand(show_first: true)
     mask1 = true if show_first == false
     mask2 = true if show_first == false
     hand.length.times do
@@ -119,11 +139,11 @@ class Player
     end
     puts "\n"
     hand.each do |card|
-      if card.rank == '10'
-        rank_print = '10'
-      else
-        rank_print = card.rank + ' '
-      end
+      rank_print = if card.rank == '10'
+                     '10'
+                   else
+                     "#{card.rank} "
+                   end
 
       if mask1 == true
         print '│XX│ '
@@ -161,21 +181,21 @@ class Human < Player
       game.display_table
       break if total > 21 || move == 's'
     end
+
     if total > 21
-      puts "YOU BUSTED."
+      puts "You busted... but you're still in it!"
       game.game_status = 'BUST'
-      sleep 1
     else
       puts "Now it's the Dealer's turn."
-      sleep 1
     end
+    sleep 1
   end
 
   def hit_or_stay
     answer = ''
     loop do
       puts "Would you like to (H)it or (S)tay?"
-      answer = gets.chomp.downcase.strip
+      answer = $stdin.getch.downcase
       break if answer == 'h' || answer == 's'
       puts "Invalid response."
     end
@@ -187,21 +207,20 @@ class Dealer < Player
   STAY_TARGET = 17
 
   def play_turn(deck, game)
-    game.display_table(show_dealer = true)
+    game.display_table(show_dealer: true)
     puts "Dealer has #{total}"
     sleep 1.5
+
     until total >= STAY_TARGET
       hand << deck.pop
       total_hand
-      game.display_table(show_dealer = true)
-      break if total > 21
+      game.display_table(show_dealer: true)
     end
 
-    if total > 21
-      puts "DEALER BUSTED! YOU WIN!"
-      game.game_status == 'WIN'
-      sleep 1
-    end
+    return unless total > 21
+    puts "DEALER BUSTED! YOU WIN!"
+    game.game_status = 'WIN'
+    sleep 1
   end
 end
 
@@ -225,10 +244,10 @@ class BlackjackGame
       display_table
       unless blackjack?
         @human.play_turn(@deck, self)
-        break if @game_status == 'BUST'
         display_table
         @dealer.play_turn(@deck, self)
       end
+      calculate_winner
       show_result
       display_score
       break unless play_again?
@@ -237,9 +256,18 @@ class BlackjackGame
     goodbye
   end
 
+  def calculate_winner
+    case game_status
+    when 'WIN'
+      puts 'WIN'
+    when 'BUST'
+      puts 'BUST'
+    end
+  end
+
   def blackjack?
     if @human.total == 21
-      @game_status = 'WIN'
+      self.game_status = 'WIN'
       true
     else
       false
@@ -247,15 +275,14 @@ class BlackjackGame
   end
 
   def reshuffle
-    if @deck.cards.length < 26
-      puts "Reshuffling deck..."
-      sleep 1
-      @deck = Deck.new
-    end
+    return unless @deck.cards.length < 26
+    puts "Reshuffling deck..."
+    sleep 1
+    @deck = Deck.new
   end
 
   def initial_deal
-    @game_status == nil
+    @game_status = nil
     @human.hand = []
     @human.hand << @deck.pop
     @human.hand << @deck.pop
@@ -266,23 +293,20 @@ class BlackjackGame
     @dealer.total_hand
   end
 
-  def display_table(show_dealer = false)
+  def display_table(show_dealer: false)
     system "clear"
-    dealer_view = "???"
-    dealer_view = "#{@dealer.total}" if show_dealer == true
+    dealer_view = show_dealer ? @dealer.total.to_s : '???'
     puts "DEALER: #{dealer_view}".colorize(30)
-    @dealer.show_hand(show_first = show_dealer)
+    @dealer.show_hand(show_first: show_dealer)
     puts "\n\n"
     puts "YOUR HAND: #{@human.total}".colorize(31)
     @human.show_hand
     puts "\n\n"
   end
 
-  def show_result
-  end
+  def show_result; end
 
-  def display_score
-  end
+  def display_score; end
 end
 
 game = BlackjackGame.new
