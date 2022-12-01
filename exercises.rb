@@ -1,51 +1,30 @@
-class GuessingGame
-  def initialize
+class Human  # Problem received from Raul Romero
+  attr_reader :name
+
+  def initialize(name)
+    @name = name
   end
 
-  def play
-    self.guesses = 7
-    self.number = rand(1..100)
-
-    while guesses > 0
-      win = round
-      break if win
-      self.guesses -= 1
+  def show
+    a = local_variables.select do |e|
+      binding.local_variable_get(e).object_id == self.object_id
     end
-
-    if win
-      puts "You won!"
-    else
-      puts "You have no more guesses. You lost!"
-    end
+    p a
   end
 
-  def round
-    puts "You have #{guesses} guesses remaining."
-    answer = nil
-    loop do
-      print "Enter a number between 1 and 100: "
-      answer = gets.chomp
-      break if answer.to_i.to_s == answer && (1..100).include?(answer.to_i)
-      puts "Please enter a number between 1 and 100."
-    end
-
-    answer = answer.to_i
-
-    if answer == number
-      puts "That's the number!"
-      win = true
-    elsif answer > number
-      puts "Your guess is too high."
-    elsif answer < number
-      puts "Your guess is too low."
-    end
+  def +(other)
+    name + other.name
   end
 
-  private
-
-  attr_accessor :guesses, :number
+  def equal?(other)
+    self.class == other.class
+  end
 end
 
-game = GuessingGame.new
-game.play
-game.play
+gilles = Human.new("gilles")
+anna = Human.new("gilles")
+
+anna.show
+
+puts anna.equal?(gilles) #should output true #
+puts anna + gilles # should output annagilles

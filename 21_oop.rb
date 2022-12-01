@@ -36,8 +36,8 @@ module Interface
     rules = <<~RULESDOC
       No-Bust Blackjack is like regular blackjack with one big difference.
       You can still win if you bust! If you bust, the dealer will still
-      play their hand. If the dealer busts and you have a LOWER total,
-      you win the hand!
+      play their hand. The dealer must hit until their cards total at least
+      17. If the dealer busts and you have a LOWER total, you win the hand!
       RULESDOC
     puts ' '
     puts rules
@@ -184,11 +184,12 @@ class Human < Player
 
     if total > 21
       puts "You busted... but you're still in it!"
-      game.game_status = 'BUST'
+      game.win_state = 'BUSTPUSH'
+      return
     else
+      game.win_state = 'STAY'
       puts "Now it's the Dealer's turn."
     end
-    sleep 1
   end
 
   def hit_or_stay
@@ -215,18 +216,27 @@ class Dealer < Player
       hand << deck.pop
       total_hand
       game.display_table(show_dealer: true)
+      puts "Dealer has #{total}"
+      sleep 1.5
     end
 
-    return unless total > 21
-    puts "DEALER BUSTED! YOU WIN!"
-    game.game_status = 'WIN'
-    sleep 1
+    if total > 21
+      print "The Dealer BUSTED..."
+      sleep 1
+      if game.win_state == 'BUSTPUSH'
+        print "but so did you."
+      else
+        game.win_state = 'WIN'
+      end
+    elsif total <= 21
+      game.win_state = 'LOSE'
+    end
   end
 end
 
 class BlackjackGame
   include Interface
-  attr_accessor :game_status
+  attr_accessor :win_state
 
   WINNING_VALUE = 21
 
@@ -234,7 +244,7 @@ class BlackjackGame
     @human = Human.new
     @dealer = Dealer.new
     @deck = Deck.new
-    @game_status = nil
+    @win_state = nil
   end
 
   def play
@@ -244,30 +254,58 @@ class BlackjackGame
       display_table
       unless blackjack?
         @human.play_turn(@deck, self)
+        continue
         display_table
         @dealer.play_turn(@deck, self)
       end
-      calculate_winner
       show_result
-      display_score
       break unless play_again?
       reshuffle
     end
     goodbye
   end
 
-  def calculate_winner
-    case game_status
+  def show_result
+    p win_state
+    case win_state
     when 'WIN'
-      puts 'WIN'
-    when 'BUST'
-      puts 'BUST'
+      puts 'You won!'
+    when 'LOSE'
+      puts 'You lost.'
+    when 'BUSTPUSH'
+      puts 'You and the dealer both busted.'
+      bustpush_check
+    else
+      calculate_winner
+    end
+    continue
+  end
+
+  def bustpush_check
+    if @human.total == @dealer.total
+      puts "It's a TIE!"
+    elsif @human.total < @dealer.total
+      puts "But you had a lower total. You WIN!"
+    else
+      puts "But you busted MORE. So you LOSE!"
+    end
+  end
+
+  def calculate_winner
+    if @human.total == @dealer.total
+      puts "It's a TIE!"
+    elsif @human.total > @dealer.total
+      puts "You were closer to 21. You WIN!"
+    else
+      puts "Dealer was closer to 21. You LOSE."
     end
   end
 
   def blackjack?
     if @human.total == 21
-      self.game_status = 'WIN'
+      puts "WOW! You hit a BLACKJACK!"
+      sleep 1.5
+      self.win_state = 'WIN'
       true
     else
       false
@@ -282,7 +320,7 @@ class BlackjackGame
   end
 
   def initial_deal
-    @game_status = nil
+    @win_state = nil
     @human.hand = []
     @human.hand << @deck.pop
     @human.hand << @deck.pop
@@ -303,10 +341,6 @@ class BlackjackGame
     @human.show_hand
     puts "\n\n"
   end
-
-  def show_result; end
-
-  def display_score; end
 end
 
 game = BlackjackGame.new
