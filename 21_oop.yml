@@ -1,0 +1,27 @@
+welcome: "Welcome to No-Bust Blackjack!"
+continue: ">> Press any key to CONTINUE <<"
+rules?: "\nWould you like to hear the rules? (Y/N)"
+invalid: "Invalid response."
+rules: |
+
+  No-Bust Blackjack is like regular blackjack with one big difference.
+  You can still win if you bust! If you bust, the dealer will still
+  play their hand. The dealer must hit until their cards total at least
+  17. If the dealer busts and you have a LOWER total, you win the hand!
+
+goodbye: "Thank you for playing, goodbye!"
+playagain?: "Play again? Hit (N) to stop, or any other key to continue."
+bustedpush: "You busted... but you're still in it!"
+dealerpush: "\nNow it's the Dealer's turn."
+hitorstay: "Would you like to (H)it or (S)tay?"
+dealerbusted: "The dealer busted..."
+playerbusted: "but so did you."
+bothbusted: " You both busted."
+tie: "It's a TIE!"
+bustedwin: "But your total was lower, so you WIN!"
+bustedlose: "But you busted more... you LOSE."
+win: "You WON!"
+lose: "You LOST."
+blackjack: "Wow, you hit a BLACKJACK! You WON!"
+reshuffle: "We've used half of the deck, so let's reshuffle..."
+both: "You both busted."

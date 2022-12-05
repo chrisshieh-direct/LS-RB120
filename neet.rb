@@ -1,42 +1,35 @@
-class Neet
-  def initialize
-    @values = []
-  end
+# define the frames for the animation
+frames = [
+  ["  O  ",
+   " /|\\ ",
+   "  |  ",
+   " / \\ "],
+  ["  O  ",
+   " /|\\ ",
+   "  |  ",
+   " / \\ "],
+  ["  O  ",
+   " /|\\ ",
+   " /|\\ ",
+   " / \\ "],
+  ["  O  ",
+   " /|\\ ",
+   " /|\\ ",
+   " / \\ "]
+]
 
-  def add_value(int)
-      @values << int
+# define a function to animate the ASCII man
+def animate(frames)
+  # print each frame in the animation
+  frames.each do |frame|
+    system "clear"
+    frame.each do |row|
+      puts row
+    end
+    puts
+    sleep(0.5)
   end
-
-  def remove_value(int)
-    @values.delete_at(@values.index(int) || @values.length)
-  end
-
-  def get_random
-    @values.sample
-  end
-
-  def values
-    @values
-  end
-
 end
 
-bob = Neet.new
-
-bob.add_value(67)
-p bob.values
-bob.add_value(67)
-p bob.values
-bob.add_value(3)
-bob.add_value(4)
-bob.add_value(4)
-p bob.values
-bob.add_value(67)
-p bob.values
-
-puts bob
-puts bob.get_random
-puts bob.values
-
-puts bob.remove_value(4)
-p bob.values
+# animate the ASCII man
+animate(frames)

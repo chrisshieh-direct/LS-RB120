@@ -1,4 +1,7 @@
 require 'io/console'
+require 'yaml'
+
+MESSAGES = YAML.load_file('21_oop.yml')
 
 module Colorful
   def colorize(color_code)
@@ -6,13 +9,13 @@ module Colorful
   end
 end
 
-String.include(Colorful)
+String.include Colorful
 
 module Interface
   def welcome
     (30..40).each do |color|
       system "clear"
-      puts "Welcome to No-Bust Blackjack!".colorize(color)
+      puts MESSAGES["welcome"].colorize(color)
       sleep 0.05
     end
     offer_rules
@@ -20,43 +23,31 @@ module Interface
 
   def continue
     puts ' '
-    puts ">>> PRESS ANY KEY TO CONTINUE <<<"
+    puts MESSAGES["continue"]
     $stdin.getch
   end
 
   def offer_rules
     answer = ''
     loop do
-      puts "\nWould you like to hear the rules? (Y/N)"
+      puts MESSAGES["rules?"]
       answer = $stdin.getch.downcase
       break if answer == 'y' || answer == 'n'
-      puts "Invalid response."
+      puts MESSAGES["invalid"]
     end
     return if answer == 'n'
-    rules = <<~RULESDOC
-      No-Bust Blackjack is like regular blackjack with one big difference.
-      You can still win if you bust! If you bust, the dealer will still
-      play their hand. The dealer must hit until their cards total at least
-      17. If the dealer busts and you have a LOWER total, you win the hand!
-      RULESDOC
-    puts ' '
-    puts rules
+    puts MESSAGES["rules"]
     continue
   end
 
   def goodbye
-    puts "Thank you for playing. Goodbye!"
+    puts MESSAGES["goodbye"]
   end
 
   def play_again?
-    answer = ''
-    loop do
-      puts "Would you like to play again? (Y/N)"
-      answer = gets.chomp.strip.downcase
-      break if answer == 'y' || answer == 'n'
-      puts "Invalid response."
-    end
-    answer == 'y'
+    puts MESSAGES["playagain?"]
+    answer = $stdin.getch.downcase
+    answer == 'n'
   end
 end
 
@@ -107,11 +98,12 @@ class Card
 end
 
 class Player
-  attr_accessor :hand, :total
+  attr_accessor :hand, :total, :wins
 
   def initialize
     @hand = []
     @total = 0
+    @wins = 0
   end
 
   def hit; end
@@ -131,6 +123,7 @@ class Player
     end
   end
 
+  # rubocop:disable Metrics/MethodLength, Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
   def show_hand(show_first: true)
     mask1 = true if show_first == false
     mask2 = true if show_first == false
@@ -169,6 +162,7 @@ class Player
     end
   end
 end
+# rubocop:enable Metrics/MethodLength, Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
 
 class Human < Player
   def play_turn(deck, game)
@@ -177,28 +171,30 @@ class Human < Player
       if move == 'h'
         hand << deck.pop
         total_hand
+        game.display_table
       end
-      game.display_table
       break if total > 21 || move == 's'
     end
+    check_bust(game)
+  end
 
+  def check_bust(game)
     if total > 21
-      puts "You busted... but you're still in it!"
-      game.win_state = 'BUSTPUSH'
-      return
+      puts MESSAGES["bustedpush"]
+      game.win_state = 'BUST'
     else
+      puts MESSAGES["dealerpush"]
       game.win_state = 'STAY'
-      puts "Now it's the Dealer's turn."
     end
   end
 
   def hit_or_stay
     answer = ''
     loop do
-      puts "Would you like to (H)it or (S)tay?"
+      puts MESSAGES["hitorstay"]
       answer = $stdin.getch.downcase
       break if answer == 'h' || answer == 's'
-      puts "Invalid response."
+      puts MESSAGES["invalid"]
     end
     answer
   end
@@ -207,6 +203,7 @@ end
 class Dealer < Player
   STAY_TARGET = 17
 
+  # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
   def play_turn(deck, game)
     game.display_table(show_dealer: true)
     puts "Dealer has #{total}"
@@ -221,22 +218,26 @@ class Dealer < Player
     end
 
     if total > 21
-      print "The Dealer BUSTED..."
+      print MESSAGES["dealerbusted"]
       sleep 1
-      if game.win_state == 'BUSTPUSH'
-        print "but so did you."
-      else
+      case game.win_state
+      when 'BUST'
+        print MESSAGES["playerbusted"]
+        game.win_state = 'BUSTBUST'
+        return
+      when 'STAY'
         game.win_state = 'WIN'
+        return
       end
-    elsif total <= 21
-      game.win_state = 'LOSE'
     end
+    game.win_state = game.win_state == 'BUST' ? 'LOSE' : 'STAYSTAY'
   end
 end
+# rubocop:enable Metrics/MethodLength, Metrics/AbcSize
 
 class BlackjackGame
   include Interface
-  attr_accessor :win_state
+  attr_accessor :win_state, :total_count
 
   WINNING_VALUE = 21
 
@@ -245,6 +246,7 @@ class BlackjackGame
     @dealer = Dealer.new
     @deck = Deck.new
     @win_state = nil
+    @total_count = 0
   end
 
   def play
@@ -252,58 +254,79 @@ class BlackjackGame
     loop do
       initial_deal
       display_table
-      unless blackjack?
-        @human.play_turn(@deck, self)
-        continue
-        display_table
-        @dealer.play_turn(@deck, self)
-      end
-      show_result
-      break unless play_again?
+      game_rounds
+      postgame
+      break if play_again?
       reshuffle
     end
     goodbye
   end
 
+  def game_rounds
+    return if blackjack?
+    @human.play_turn(@deck, self)
+    continue
+    display_table
+    @dealer.play_turn(@deck, self)
+  end
+
+  def postgame
+    show_result
+    continue
+    show_score
+  end
+
+  # rubocop:disable Metrics/MethodLength
   def show_result
-    p win_state
     case win_state
     when 'WIN'
-      puts 'You won!'
+      puts MESSAGES["win"]
+      @human.wins += 1
     when 'LOSE'
-      puts 'You lost.'
-    when 'BUSTPUSH'
-      puts 'You and the dealer both busted.'
+      puts MESSAGES["lose"]
+      @dealer.wins += 1
+    when 'BUSTBUST'
+      puts MESSAGES["bothbusted"]
       bustpush_check
     else
       calculate_winner
     end
-    continue
+  end
+  # rubocop:enable Metrics/MethodLength
+
+  def show_score
+    puts "You've played #{total_count} games."
+    puts "Your wins: #{@human.wins}"
+    puts "Dealer wins: #{@dealer.wins}"
   end
 
   def bustpush_check
     if @human.total == @dealer.total
-      puts "It's a TIE!"
+      puts MESSAGES["tie"]
     elsif @human.total < @dealer.total
-      puts "But you had a lower total. You WIN!"
+      puts MESSAGES["bustedwin"]
+      @human.wins += 1
     else
-      puts "But you busted MORE. So you LOSE!"
+      puts MESSAGES["bustedlose"]
+      @dealer.wins += 1
     end
   end
 
   def calculate_winner
     if @human.total == @dealer.total
-      puts "It's a TIE!"
+      puts MESSAGES["tie"]
     elsif @human.total > @dealer.total
-      puts "You were closer to 21. You WIN!"
+      puts MESSAGES["win"]
+      @human.wins += 1
     else
-      puts "Dealer was closer to 21. You LOSE."
+      puts MESSAGES["lose"]
+      @dealer.wins += 1
     end
   end
 
   def blackjack?
     if @human.total == 21
-      puts "WOW! You hit a BLACKJACK!"
+      puts MESSAGES["blackjack"]
       sleep 1.5
       self.win_state = 'WIN'
       true
@@ -314,7 +337,7 @@ class BlackjackGame
 
   def reshuffle
     return unless @deck.cards.length < 26
-    puts "Reshuffling deck..."
+    puts MESSAGES["reshuffle"]
     sleep 1
     @deck = Deck.new
   end
@@ -329,6 +352,7 @@ class BlackjackGame
     @dealer.hand << @deck.pop
     @dealer.hand << @deck.pop
     @dealer.total_hand
+    @total_count += 1
   end
 
   def display_table(show_dealer: false)
